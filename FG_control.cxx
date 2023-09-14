@@ -1,17 +1,17 @@
 #include "FG_control.hxx"
 
 int SocketConnect(){
-	int socketOsc;
+	int socketFG;
 	struct sockaddr_in serverAddr;
 
 	//create socket
 	std::cout<<"Creating socket..."<<std::endl;
-	socketOsc = socket(AF_INET, SOCK_STREAM, 0);
-	if(socketOsc == -1){
+	socketFG = socket(AF_INET, SOCK_STREAM, 0);
+	if(socketFG == -1){
 		std::cerr<<"Failed to create socket"<<std::endl;
 		exit(-1);
 	}
-	std::cout<<"Created socket SID = "<<socketOsc<<std::endl;
+	std::cout<<"Created socket SID = "<<socketFG<<std::endl;
 	
 	//socket connect
 	serverAddr.sin_family = AF_INET;
@@ -19,42 +19,43 @@ int SocketConnect(){
 	serverAddr.sin_addr.s_addr = inet_addr(host_ip);
 
 	std::cout<<"Connecting to remote host..."<<std::endl;
-	if( connect(socketOsc, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0){
+	if( connect(socketFG, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0){
 		std::cerr<<"Failed to connect to remote host"<<std::endl;
 		exit(-1);
 	}
 
-	return socketOsc;
+	return socketFG;
 
 }
 
-void SendCommand(int socketOsc, char const* cmd){
+void SendCommand(int socketFG, std::string const& cmd){
 	//send command
-	std::cout<<"Sending command: "<<cmd<<std::endl;
-	if( send(socketOsc, cmd, strlen(cmd), 0) <= 0){
+	if(cmd.substr(0,12) == "C1:WVDT WVNM") std::cout<<"Sending user function 2-byte data points"<<std::endl<<std::endl;
+	else std::cout<<"Sending command: "<<cmd<<std::endl;
+	if( send(socketFG, cmd.c_str(), cmd.length(), 0) <= 0){
 		std::cerr<<"Failed to send command"<<std::endl;
 		exit(-1);
 	}
 }
 
-void SocketQuery(int socketOsc, char const* cmd){
+void SocketQuery(int socketFG, std::string const& cmd){
 	char recv_str[4096];
 	//send command
-	SendCommand(socketOsc, cmd);
+	SendCommand(socketFG, cmd);
         
 	//receive reponse from remote host
 	memset(recv_str, 0, sizeof(recv_str));         //memory initialize
 	std::cout<<"Receiving reponse..."<<std::endl;
-	if( recv(socketOsc, recv_str, sizeof(recv_str), 0) <= 0){
+	if( recv(socketFG, recv_str, sizeof(recv_str), 0) <= 0){
 		std::cerr<<"Failed to receive response"<<std::endl;
 		exit(-1);
 	}
 	std::cout<<recv_str<<std::endl;
 
-	close(socketOsc);
+	close(socketFG);
 }
 
-std::string TranslateCommand(int ch, std::string mode, std::string cmd){
+std::string TranslateCommand(int ch, std::string const& mode, std::string const& cmd){
 	if(mode == "-q" || mode == "--query"){
 		if(cmd == "identify")          return "*IDN?\n";
 		else if (cmd == "waveList?")   return "STL?\n";
@@ -73,8 +74,12 @@ std::string TranslateCommand(int ch, std::string mode, std::string cmd){
 	}
 }
 
-std::string TranslateCommand(int ch, std::string mode, std::string cmd, std::string parameter){
-	if(mode == "-s" || mode == "--send"){
+std::string TranslateCommand(int ch, std::string const& mode, std::string const& cmd, std::string const& parameter){
+	if(mode == "-q" || mode == "--query"){
+		if(cmd == "arbWaveInfo?")      return "WVDT? USER," + parameter + "\n";
+		else{ std::cerr<<"no such command!"<<std::endl; exit(-1); }
+	}
+	else if(mode == "-s" || mode == "--send"){
 		if(cmd == "outputLoad")        return "C" + std::to_string(ch) + ":OUTPut LOAD," + parameter + "\n";
 		else if(cmd == "outputSwitch") return "C" + std::to_string(ch) + ":OUTPut " + parameter + "\n";
 
@@ -104,22 +109,26 @@ std::string TranslateCommand(int ch, std::string mode, std::string cmd, std::str
 
 		else if(cmd == "arbWaveType")  return "C" + std::to_string(ch) + ":ARWV NAME," + parameter + "\n";
 		else if(cmd == "arbWaveIndex") return "C" + std::to_string(ch) + ":ARWV INDEX," + parameter + "\n";
-
 		else if(cmd == "arbWaveSave"){
 			std::ifstream f_in(parameter, std::ios::in);
 			if(!f_in){ std::cerr<<"can not find waveform file!"<<std::endl; exit(-1); }
 			std::string wavename;
 			std::string point;
-			std::string data;
+			std::string dataPoints_str;
+			short point_2b;    //2-byte signed integer
 			f_in>>wavename;
 			while(f_in>>point){
-				int16_t num = stoi(point, 0, 16);
-				data += reinterpret_cast<char const*>(&num);
-				std::cout<<std::hex<<(int) data[1]<<std::endl;
+				point_2b = stoi(point, 0, 16);  //no need to convert to network endianness aka big-endian?? Why?
+				dataPoints_str.append(reinterpret_cast<char const*>(&point_2b), sizeof(point_2b) ); //use append() instead of "+" operator to avoid 0x00 ASCII code been treated as the end of string.
 			}
 			f_in.close();
-			return "C" + std::to_string(ch) + ":WVDT WVNM," + wavename + ",WAVEDATA," + data + "\n";
+			std::string command = "C" + std::to_string(ch) + ":WVDT WVNM," + wavename + ",WAVEDATA,";
+			command.append(dataPoints_str.c_str(), dataPoints_str.length() );
+			command.append("\n");
+			return command;
 		}
+
+		else if(cmd == "sendCommand")  return parameter + "\n";
 
 		else{ std::cerr<<"no such command!"<<std::endl; exit(-1); }
 	}
@@ -134,6 +143,8 @@ void Usage(){
 	std::cout<<"     command <\033[32moutput?\033[0m> returns channel output information"<<std::endl;
 	std::cout<<"     command <\033[32mwaveInfo?\033[0m> returns channel waveform information"<<std::endl;
 	std::cout<<"     command <\033[32mmodInfo?\033[0m> returns channel Mod information"<<std::endl;
+	std::cout<<"mode <\033[32m-q\033[0m> or <\033[32m--query\033[0m>: get informations (need parameter after command)"<<std::endl;
+	std::cout<<"     command <\033[32marbWaveInfo?\033[0m> returns user function waveform information (for debug)"<<std::endl;
 	std::cout<<"mode <\033[32m-s\033[0m> or <\033[32m--send\033[0m>: send commands to F.G. (need parameter after command)"<<std::endl;
 	std::cout<<"     command <\033[32moutputLoad\033[0m> set Load resistance [Ohm] or HZ"<<std::endl;
 	std::cout<<"     command <\033[32moutputSwitch\033[0m> \033[33mon/off\033[0m the output"<<std::endl;
@@ -159,6 +170,12 @@ void Usage(){
 	std::cout<<"     command <\033[32mpwmFrequency\033[0m> pwm frequency [Hz]"<<std::endl;
 	std::cout<<"     command <\033[32mpwmDuty\033[0m> pwm duty factor [%]"<<std::endl;
 	std::cout<<"     command <\033[32mpwmShape\033[0m> set pwm wave shape to \033[33msine/square/triangle/upramp/dnramp/noise/arb\033[0m"<<std::endl;
+	std::cout<<"     command <\033[32marbWaveType\033[0m> set user/built-in Arb function by giving function name"<<std::endl;
+	std::cout<<"     command <\033[32marbWaveIndex\033[0m> set user/built-in Arb function by giving function index"<<std::endl;
+	std::cout<<"     command <\033[32marbWaveSave\033[0m> send user function waveform data to function generator by giving data file"<<std::endl;
+	std::cout<<"                     e.g. /FG_control 1 -s arbWaveSave testwave.txt"<<std::endl;
+	std::cout<<"                     see README for more information of user function data format"<<std::endl;
+	std::cout<<"     command <\033[32msendCommand\033[0m> send SCPI command directly to function generator. <channel> argument will be ignored and \\n character will be  automatically added at the end of command."<<std::endl;
 }
 
 int main(int argc, char** argv){
@@ -169,13 +186,15 @@ int main(int argc, char** argv){
 	int ch = atoi(argv[1]);
 	std::string mode = argv[2];
 	std::string cmd;
-	int socketOsc = SocketConnect();
+	int socketFG = SocketConnect();
 
 	std::cout<<"mode = "<<mode << std::endl;
 	if(mode == "-q" || mode == "--query"){
 		std::cout<<"Query mode"<<std::endl;
-		cmd = TranslateCommand(ch, mode, argv[3]);
-		SocketQuery(socketOsc, cmd.c_str());
+		if(argc == 4) cmd = TranslateCommand(ch, mode, argv[3]);
+		else if (argc == 5) cmd = TranslateCommand(ch, mode, argv[3], argv[4]);
+		else {std::cerr<<"need parameter for this mode!"<<std::endl; exit(-1); }
+		SocketQuery(socketFG, cmd);
 	}
 	else if(mode == "-s" || mode == "--send"){
 		if(argc != 5){
@@ -184,7 +203,7 @@ int main(int argc, char** argv){
 		}
 		cmd = TranslateCommand(ch, mode, argv[3], argv[4]);
 		std::cout<<"Send command to remote host mode"<<std::endl;
-		SendCommand(socketOsc, cmd.c_str());
+		SendCommand(socketFG, cmd);
 	}
 	else if(mode == "-h" || mode == "--help"){
 		Usage();
