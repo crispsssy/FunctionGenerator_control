@@ -139,7 +139,7 @@ std::string TranslateCommand(int ch, std::string const& mode, std::string const&
 void Usage(){
 	std::cout<<"./FG_control <channel> <mode> <command> <parameter>"<<std::endl;
 	std::cout<<"mode <\033[32m-q\033[0m> or <\033[32m--query\033[0m>: get informations (no parameter needed)"<<std::endl;
-	std::cout<<"notice that for the last questionare sign you need to put a \\ before it"<<std::endl;
+	std::cout<<"notice that for the last question mark you need to put a \\ before it"<<std::endl;
 	std::cout<<"     command <\033[32moutput?\033[0m> returns channel output information"<<std::endl;
 	std::cout<<"     command <\033[32mwaveInfo?\033[0m> returns channel waveform information"<<std::endl;
 	std::cout<<"     command <\033[32mmodInfo?\033[0m> returns channel Mod information"<<std::endl;
