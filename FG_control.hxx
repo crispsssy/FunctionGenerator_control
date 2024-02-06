@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-char const* host_ip("192.169.10.55");
+char const* host_ip("192.168.10.2");
 int const portNum = 5025;
 
 int SocketConnect();
