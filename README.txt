@@ -1,7 +1,7 @@
 connect your computer with function generator by LAN cable
-Set Fuction generator's ip to 192.169.10.55
+Set Fuction generator's ip to 192.168.10.2 (or 192.168.10.xx) ***notice this should be consistent with ip in header file***
 Set Fuction generator's mask to 255.255.255.0
-Set your computer's ip to 192.169.10.10 (or 192.169.10.xx)
+Set your computer's ip to 192.168.10.10 (or 192.168.10.xx)
 Set your computer's mask to 255.255.255.0
 
 compile FG_control.cxx
