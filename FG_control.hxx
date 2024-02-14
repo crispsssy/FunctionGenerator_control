@@ -25,8 +25,8 @@
 char const* host_ip("192.168.10.2");
 int const portNum = 5025;
 
-int SocketConnect();
-void SocketQuery(int socketOsc, std::string const& cmd);
-void SendCommand(int socketOsc, std::string const& cmd);
-std::string TranslateCommand(int ch, std::string const& mode, std::string const& cmd);
-std::string TranslateCommand(int ch, std::string const& mode, std::string const& cmd, std::string const& parameter);
+int const SocketConnect();
+void SocketQuery(int const socketOsc, std::string const& cmd);
+void SendCommand(int const socketOsc, std::string const& cmd);
+std::string TranslateCommand(int const ch, std::string const& mode, std::string const& cmd);
+std::string TranslateCommand(int const ch, std::string const& mode, std::string const& cmd, std::string const& parameter);

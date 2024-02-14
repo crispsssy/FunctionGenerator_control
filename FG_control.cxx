@@ -1,6 +1,6 @@
 #include "FG_control.hxx"
 
-int SocketConnect(){
+int const SocketConnect(){
 	int socketFG;
 	struct sockaddr_in serverAddr;
 
@@ -28,9 +28,9 @@ int SocketConnect(){
 
 }
 
-void SendCommand(int socketFG, std::string const& cmd){
+void SendCommand(int const socketFG, std::string const& cmd){
 	//send command
-	if(cmd.substr(0,12) == "C1:WVDT WVNM") std::cout<<"Sending user function 2-byte data points"<<std::endl<<std::endl;
+	if(cmd.substr(2,10) == ":WVDT WVNM") std::cout<<"Sending user function 2-byte data points"<<std::endl<<std::endl;
 	else std::cout<<"Sending command: "<<cmd<<std::endl;
 	if( send(socketFG, cmd.c_str(), cmd.length(), 0) <= 0){
 		std::cerr<<"Failed to send command"<<std::endl;
@@ -38,7 +38,7 @@ void SendCommand(int socketFG, std::string const& cmd){
 	}
 }
 
-void SocketQuery(int socketFG, std::string const& cmd){
+void SocketQuery(int const socketFG, std::string const& cmd){
 	char recv_str[4096];
 	//send command
 	SendCommand(socketFG, cmd);
@@ -55,7 +55,7 @@ void SocketQuery(int socketFG, std::string const& cmd){
 	close(socketFG);
 }
 
-std::string TranslateCommand(int ch, std::string const& mode, std::string const& cmd){
+std::string TranslateCommand(int const ch, std::string const& mode, std::string const& cmd){
 	if(mode == "-q" || mode == "--query"){
 		if(cmd == "identify")          return "*IDN?\n";
 		else if (cmd == "waveList?")   return "STL?\n";
@@ -74,7 +74,7 @@ std::string TranslateCommand(int ch, std::string const& mode, std::string const&
 	}
 }
 
-std::string TranslateCommand(int ch, std::string const& mode, std::string const& cmd, std::string const& parameter){
+std::string TranslateCommand(int const ch, std::string const& mode, std::string const& cmd, std::string const& parameter){
 	if(mode == "-q" || mode == "--query"){
 		if(cmd == "arbWaveInfo?")      return "WVDT? USER," + parameter + "\n";
 		else{ std::cerr<<"no such command!"<<std::endl; exit(-1); }
@@ -183,10 +183,10 @@ int main(int argc, char** argv){
 		Usage();
 		exit(-1);
 	}
-	int ch = atoi(argv[1]);
+	int const ch = atoi(argv[1]);
 	std::string mode = argv[2];
 	std::string cmd;
-	int socketFG = SocketConnect();
+	int const socketFG = SocketConnect();
 
 	std::cout<<"mode = "<<mode << std::endl;
 	if(mode == "-q" || mode == "--query"){
